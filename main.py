@@ -1,11 +1,14 @@
 from binascii import a2b_base64
-from time import sleep
-from selenium.webdriver.chrome.options import Options
-from selenium import webdriver
-from selenium.common.exceptions import NoSuchElementException, InvalidArgumentException
 from pathlib import Path
 import re
 import sys
+from time import sleep
+from selenium.webdriver.chrome.options import Options as ChromeOptions
+from selenium.webdriver.chrome.service import Service as ChromeService
+from selenium.webdriver.firefox.options import Options as FirefoxOptions
+from selenium.webdriver.firefox.service import Service as FirefoxService
+from selenium import webdriver
+from selenium.common.exceptions import NoSuchElementException, InvalidArgumentException
 
 
 TITLE_XPATH = "/html/body/div[1]/div[2]/div/div[3]/div[1]/div[2]/a/h1"
@@ -15,36 +18,76 @@ ILLEGAL_CHARACTERS = re.compile(r"([\\/:*?\"<>|])")
 SLEEP_SECONDS = 0.5  # Need to sleep so the pages have time to load.
 
 
+def get_browser() -> str:
+    '''Requests the browser from the user, exits if "X" provided.'''
+
+    browser = input("Please select your browser by typing 'FF' for Firefox or 'GC' for Google Chrome. Exit with 'X': ").lower()
+    if browser == "x":
+        print("Exiting...")
+        sys.exit(0)
+    elif not (browser == "ff" or browser == "gc"):
+        print("Unrecognized browser. Please try again.")
+        return get_browser()
+    else:
+        return browser
+
+
 def get_URL() -> str:
     '''Requests the URL from the user, exits if "X" provided.'''
 
-    url = input("Please provide the chapter URL, or exit with 'X': ")
-    if url == "X":
+    url = input("Please provide the chapter URL. Exit with 'X': ")
+    if url == "X" or url == "x":  # URL can be case sensitive, so not calling lower on input.
         print("Exiting...")
         sys.exit(0)
     else:
         return url
 
 
-def get_manga_directory() -> Path:
+def get_manga_directory(app_directory) -> Path:
     '''Creates the Manga directory if it does not exist and returns its path object.'''
 
-    app_directory = Path(__file__).parent if "__file__" in locals() else Path.cwd()
     manga_directory = app_directory / "Manga"
     if not manga_directory.exists():
         manga_directory.mkdir()
     return manga_directory
 
 
-def set_options() -> Options:
-    '''Sets the driver options and returns the related object.'''
+def set_driver(browser: str) -> tuple[(webdriver.Firefox, Path | webdriver.Firefox, Path)]:
+    '''Sets the driver based on the browser selection and returns its class name without initializing it. 
+    The driver will be initialized in a context manager expression with the options and service as parameters.
+    '''
 
-    chrome_options = Options()
-    chrome_options.add_argument("--disable-web-security")
-    chrome_options.add_argument("--disable-site-isolation-trials")
-    chrome_options.add_argument("--headless")  # Comment this line out for debugging.
-    chrome_options.add_experimental_option("excludeSwitches", ["enable-logging"])  # Comment this line out for debugging.
-    return chrome_options
+    if browser == "ff":
+        return webdriver.Firefox
+    elif browser == "gc":
+        return webdriver.Chrome
+
+
+def set_service(app_directory: Path, browser: str) -> (FirefoxService | ChromeService):
+    '''Sets the driver service based on the browser selection and returns the related object.'''
+
+    if browser == "ff":
+        driver_path = app_directory / "geckodriver.exe"
+        return FirefoxService(executable_path=driver_path)
+    elif browser == "gc":
+        driver_path = app_directory / "chromedriver.exe"
+        return ChromeService(executable_path=driver_path)
+
+
+def set_options(browser: str) -> (FirefoxOptions | ChromeOptions):
+    '''Sets the driver options based on the browser selection and returns the related object.'''
+
+    if browser == "ff":
+        ff_options = FirefoxOptions()
+        ff_options.add_argument("--headless")  # Comment this line out for debugging.
+        return ff_options
+    elif browser == "gc":
+        chrome_options = ChromeOptions()
+        chrome_options.add_argument("--disable-web-security")
+        chrome_options.add_argument("--disable-site-isolation-trials")
+        chrome_options.add_argument("--headless")  # Comment this line out for debugging.
+        chrome_options.add_experimental_option("excludeSwitches", ["enable-logging"])  # Comment this line out for debugging.
+        return chrome_options
 
 
 def initiate_driver(driver: webdriver, url: str) -> None:
@@ -90,7 +133,7 @@ def get_chapter_directory(chapter_no: str, title_directory: Path):
 
 def get_real_pages_no(driver: webdriver, total_pages: int) -> int:
     '''Determines and returns the real amount of pages ofthe chapter, without any ads.
-    This loop is necessary, since different manga titles have different amount of ads after the chapter ends apparently.'''
+    This loop is necessary, since different manga titles have different amount of ad elements after the chapter ends apparently.'''
 
     real_pages = 0
     for page_no in range(1, total_pages + 1):
@@ -113,7 +156,7 @@ def get_real_pages_no(driver: webdriver, total_pages: int) -> int:
     return real_pages
 
 
-def get_filename_format(real_pages: int):
+def get_filename_format(real_pages: int) -> str:
     '''Returns the format of the page representation, with leading zeroes depending on the total page number.'''
 
     if real_pages < 10:
@@ -164,11 +207,14 @@ def get_pages(chapter_directory: Path, chapter_no: str, driver: webdriver, final
 def main() -> None:
     '''Main function.'''
 
+    app_directory = Path(__file__).parent if "__file__" in locals() else Path.cwd()
+    browser = get_browser()
     url = get_URL()
-    manga_directory = get_manga_directory()
-    chrome_options = set_options()
+    driver= set_driver(browser)
+    service = set_service(app_directory, browser)
+    options = set_options(browser)
 
-    with webdriver.Chrome(options=chrome_options) as driver:
+    with driver(options=options, service=service) as driver:
         try:
             initiate_driver(driver, url)
         except InvalidArgumentException:
@@ -182,6 +228,7 @@ def main() -> None:
             print("Elements not found, possibly wrong url provided. Closing app...")
             sys.exit(0)
 
+        manga_directory = get_manga_directory(app_directory)
         final_title, title_directory = get_title_and_directory(manga_directory, title)
         chapter_directory = get_chapter_directory(chapter_no, title_directory)
         real_pages = get_real_pages_no(driver, total_pages)
