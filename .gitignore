@@ -2,3 +2,4 @@
 /env
 /Manga
 *.log
+__pycache__
