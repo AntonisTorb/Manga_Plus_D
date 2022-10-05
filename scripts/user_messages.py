@@ -1,9 +1,9 @@
-from global_constants import FONT
+from .global_constants import FONT
 import PySimpleGUI as sg  # pip install PySimpleGUI
 
 
 def multiline_error_handler(string_list: list[str]) -> None:
-    '''Displays window with a longer error message.'''
+    '''Displays window with an error message. Each string in the provided string_list appears in a new line.'''
 
     sg.Window("ERROR!", [
         [[sg.Push(), sg.Text(text), sg.Push()] for text in string_list],
@@ -12,7 +12,7 @@ def multiline_error_handler(string_list: list[str]) -> None:
 
 
 def multiline_warning_handler(string_list: list[str]) -> None:
-    '''Displays window with a longer warning message.'''
+    '''Displays window with a warning message. Each string in the provided string_list appears in a new line.'''
 
     sg.Window("Warning", [
         [[sg.Push(), sg.Text(text), sg.Push()] for text in string_list],
