@@ -4,6 +4,9 @@ Simply provide the browser to use and the chapter URL and let the script run unt
 
 For a simplified version without a GUI, please check the [noGUI branch](https://github.com/AntonisTorb/Manga_Plus_D/tree/noGUI).
 
+## WARNING!
+This application uses PySimpleGUI for the GUI frontend. PySimpleGUI has recently become closed source in a disappointing decision, thus I would advise you to use the PySimpleGUI version specified in the `requirements.txt` file. For any future versions, I can guarantee neither the integrity nor the security of the package.
+
 ## Disclaimer
 I am not giving permission to any one person or legal entity to use this code for any purpose other than to read some manga chapters. If you want to use part of the code for your own project please contact me with a description of what you want to do.
 
